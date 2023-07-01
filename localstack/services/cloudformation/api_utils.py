@@ -1,3 +1,4 @@
+import json
 import logging
 import re
 from urllib.parse import urlparse
@@ -58,6 +59,20 @@ def get_template_body(req_data: dict) -> str:
                 "Unable to fetch template body (code %s) from URL %s" % (status_code, url)
             )
         return to_str(response.content)
+    # added support for UsePreviousTemplate parameter - https://github.com/localstack/localstack/issues/8576
+    use_previous_template = req_data.get("UsePreviousTemplate")
+    if use_previous_template == True:
+        client = aws_stack.connect_to_service("cloudformation")
+        stack_name = req_data.get("StackName")
+        LOG.debug(
+            "Get CloudFormation template body from existing stack: %s",
+            stack_name
+        )
+        result = client.get_template(
+            StackName=stack_name, TemplateStage="Original"
+        )
+        body = json.dumps(result["TemplateBody"])
+        return body
     raise Exception("Unable to get template body from input: %s" % req_data)
 
 
